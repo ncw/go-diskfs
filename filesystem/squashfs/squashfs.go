@@ -7,9 +7,12 @@ import (
 	"math"
 	"os"
 	"path"
+	"sync"
+	"time"
 
 	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/diskfs/go-diskfs/util"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 const (
@@ -32,6 +35,8 @@ type FileSystem struct {
 	uidsGids   []uint32
 	xattrs     *xAttrTable
 	rootDir    inode
+	fragCache  *expirable.LRU[int64, []byte]
+	locMu      sync.Map // a mutex per location
 }
 
 // Equal compare if two filesystems are equal
@@ -185,6 +190,7 @@ func Read(file util.File, size, start, blocksize int64) (*FileSystem, error) {
 		compressor: compress,
 		fragments:  fragments,
 		uidsGids:   uidsgids,
+		fragCache:  expirable.NewLRU[int64, []byte](64, nil, 10*time.Second),
 	}
 	// for efficiency, read in the root inode right now
 	rootInode, err := fs.getInode(s.rootInode.block, s.rootInode.offset, inodeBasicDirectory)
@@ -546,6 +552,19 @@ func (fs *FileSystem) readBlock(location int64, compressed bool, size uint32) ([
 	return b, nil
 }
 
+// Locks location, returns a function to unlock it.
+//
+// This is to make sure there is only one request outstanding for each
+// location to prevent the dogpile effect where many simultaneous
+// requests are sent at the same time for the same thing.
+func (fs *FileSystem) lockLoc(location int64) func() {
+	muI, _ := fs.locMu.LoadOrStore(location, &sync.Mutex{})
+	//nolint:errcheck // this should always be a *sync.Mutex so a panic here is acceptable
+	mu := muI.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 func (fs *FileSystem) readFragment(index, offset uint32, fragmentSize int64) ([]byte, error) {
 	// get info from the fragment table
 	// figure out which block of the fragment table we need
@@ -555,9 +574,19 @@ func (fs *FileSystem) readFragment(index, offset uint32, fragmentSize int64) ([]
 		return nil, fmt.Errorf("cannot find fragment block with index %d", index)
 	}
 	fragmentInfo := fs.fragments[index]
+	location := int64(fragmentInfo.start)
+
+	defer fs.lockLoc(location)()
+	if fs.fragCache != nil {
+		data, ok := fs.fragCache.Get(location)
+		if ok {
+			return data[offset : int64(offset)+fragmentSize], nil
+		}
+	}
+
 	// figure out the size of the compressed block and if it is compressed
 	b := make([]byte, fragmentInfo.size)
-	read, err := fs.file.ReadAt(b, int64(fragmentInfo.start))
+	read, err := fs.file.ReadAt(b, location)
 	if err != nil && err != io.EOF {
 		return nil, fmt.Errorf("unable to read fragment block %d: %v", index, err)
 	}
@@ -574,6 +603,9 @@ func (fs *FileSystem) readFragment(index, offset uint32, fragmentSize int64) ([]
 		if err != nil {
 			return nil, fmt.Errorf("decompress error: %v", err)
 		}
+	}
+	if fs.fragCache != nil {
+		fs.fragCache.Add(location, data)
 	}
 	// now get the data from the offset
 	return data[offset : int64(offset)+fragmentSize], nil
