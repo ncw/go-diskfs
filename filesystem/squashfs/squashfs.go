@@ -36,7 +36,14 @@ type FileSystem struct {
 	xattrs     *xAttrTable
 	rootDir    inode
 	fragCache  *expirable.LRU[int64, []byte]
+	metaCache  *expirable.LRU[int64, metaCacheBlock]
 	locMu      sync.Map // a mutex per location
+}
+
+// What we need to store in the metadata cache
+type metaCacheBlock struct {
+	data []byte
+	size uint16
 }
 
 // Equal compare if two filesystems are equal
@@ -191,6 +198,7 @@ func Read(file util.File, size, start, blocksize int64) (*FileSystem, error) {
 		fragments:  fragments,
 		uidsGids:   uidsgids,
 		fragCache:  expirable.NewLRU[int64, []byte](64, nil, 10*time.Second),
+		metaCache:  expirable.NewLRU[int64, metaCacheBlock](64, nil, 10*time.Second),
 	}
 	// for efficiency, read in the root inode right now
 	rootInode, err := fs.getInode(s.rootInode.block, s.rootInode.offset, inodeBasicDirectory)
