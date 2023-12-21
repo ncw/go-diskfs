@@ -73,6 +73,13 @@ func (m *metadatablock) toBytes(c Compressor) ([]byte, error) {
 }
 
 func (fs *FileSystem) readMetaBlock(r io.ReaderAt, c Compressor, location int64) (data []byte, size uint16, err error) {
+	defer fs.lockLoc(location)()
+	if fs.metaCache != nil {
+		cached, ok := fs.metaCache.Get(location)
+		if ok {
+			return cached.data, cached.size, nil
+		}
+	}
 	// read bytes off the reader to determine how big it is and if compressed
 	b := make([]byte, 2)
 	_, _ = r.ReadAt(b, location)
@@ -97,6 +104,12 @@ func (fs *FileSystem) readMetaBlock(r io.ReaderAt, c Compressor, location int64)
 		if err != nil {
 			return nil, 0, fmt.Errorf("decompress error: %v", err)
 		}
+	}
+	if fs.metaCache != nil {
+		fs.metaCache.Add(location, metaCacheBlock{
+			data: data,
+			size: size + 2,
+		})
 	}
 	return data, size + 2, nil
 }
