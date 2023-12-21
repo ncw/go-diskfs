@@ -6,6 +6,8 @@ require (
 	github.com/elliotwutingfeng/asciiset v0.0.0-20230602022725-51bbb787efab
 	github.com/go-test/deep v1.0.8
 	github.com/google/uuid v1.3.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/klauspost/compress v1.17.4
 	github.com/pierrec/lz4/v4 v4.1.17
 	github.com/pkg/xattr v0.4.9
 	github.com/sirupsen/logrus v1.9.0
@@ -13,5 +15,3 @@ require (
 	golang.org/x/sys v0.5.0
 	gopkg.in/djherbis/times.v1 v1.3.0
 )
-
-require github.com/klauspost/compress v1.17.4 // indirect
