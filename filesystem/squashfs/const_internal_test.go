@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/diskfs/go-diskfs/util"
+	"github.com/ncw/go-diskfs/util"
 )
 
 const (

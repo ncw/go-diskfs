@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/diskfs/go-diskfs/testhelper"
+	"github.com/ncw/go-diskfs/testhelper"
 	"github.com/go-test/deep"
 )
 

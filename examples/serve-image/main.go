@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/diskfs/go-diskfs/filesystem"
-	"github.com/diskfs/go-diskfs/filesystem/fat32"
-	"github.com/diskfs/go-diskfs/filesystem/iso9660"
-	"github.com/diskfs/go-diskfs/filesystem/squashfs"
+	"github.com/ncw/go-diskfs/filesystem"
+	"github.com/ncw/go-diskfs/filesystem/fat32"
+	"github.com/ncw/go-diskfs/filesystem/iso9660"
+	"github.com/ncw/go-diskfs/filesystem/squashfs"
 )
 
 func main() {

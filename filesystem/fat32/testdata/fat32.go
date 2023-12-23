@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/diskfs/go-diskfs"
-	"github.com/diskfs/go-diskfs/disk"
-	"github.com/diskfs/go-diskfs/filesystem"
+	"github.com/ncw/go-diskfs"
+	"github.com/ncw/go-diskfs/disk"
+	"github.com/ncw/go-diskfs/filesystem"
 )
 
 func main() {
